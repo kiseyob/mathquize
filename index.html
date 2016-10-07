@@ -5,8 +5,15 @@
 
 <script src="js/jquery.min.js"></script>
 <script>
+if (navigator.userAgent.match(/iPhone/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = device-width, initial-scale = 0.85, user-scalable = no" />' );
+}
+else if (navigator.userAgent.match(/iPad/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = device-width, initial-scale = 1.2, user-scalable = no" />' );
+}
+
 $(document).ready(function() {
-	$("#math_quiz .image").css("background-image", "url('MathQuizRes/Math-512.png')");
+	$("#math_quiz .image").css("background-image", "url('MathQuizRes/math-512.png')");
 	$("#dorijigo .image").css("background-image", "url('Cards/8a.png')");
 	$('#math_quiz').click(function(){
 	   window.location.href='MathQuiz.html';
