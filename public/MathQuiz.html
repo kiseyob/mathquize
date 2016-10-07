@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Math Quiz</title>
+<link rel=icon” type="image/png" href='MathQuizRes/math-512.png' />
+<link rel="shortcut icon" type="image/png" href='MathQuizRes/math-32.png' />
+<link rel="apple-touch-icon" href="MathQuizRes/math-ipad.png">
+<link rel="apple-touch-icon" sizes="120x120" href="MathQuizRes/math-iphone-retina.png">
+<link rel="apple-touch-icon" sizes="152x152" href="MathQuizRes/math-ipad-retina.png">
+<!-- <link rel="apple-touch-startup-image" href="img/splash.png" /> -->
+
+<script src="js/jquery.min.js"></script>
+<script src="js/CookieUtil.js"></script>
+
+<script>
+var max_columns = 5;
+var max_num_question = 20;
+
+if (navigator.userAgent.match(/iPhone/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = device-width, initial-scale = 0.85, user-scalable = no" />' );
+	max_columns = 3;
+}
+else if (navigator.userAgent.match(/iPad/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = device-width, initial-scale = 1.2, user-scalable = no" />' );
+	max_columns = 5;
+}
+
+function updateOrientation()
+{
+	switch(window.orientation) {
+		case 0:
+		case 180:	// "Portrait"
+			max_columns = 3;
+			break;
+		case -90:
+		case 90:	// "Landscape"
+			max_columns = 5;
+			break;
+	}
+	
+	if (navigator.userAgent.match(/iPhone/i)) {
+		$("#view").attr('content','user-scalable=no, width=device-width, initial-scale = 0.85, minimum-scale = 0.85, maximum-scale = 0.85');
+	}
+	else if (navigator.userAgent.match(/iPad/i)) {
+		$("#view").attr('content','user-scalable=no, width=device-width, initial-scale = 1.2, minimum-scale = 1.2, maximum-scale = 1.2');
+	}
+
+	if ($("#level_table").is(":visible"))
+		level_select_stage();
+}
+
+function Level(a, b, c, d, e, f) {
+	this.Operation = a;
+	this.First_max = b;
+	this.First_min = c;
+	this.Second_max = d;
+	this.Second_min = e;
+	this.TimeLimit = f;
+
+	this.Great = 2.5;
+	this.Good = 5.0;
+	this.Score = 0;
+	this.Count = 0;
+	this.Result = null;
+	this.Time = null;
+	this.ExistingQuestions = null;
+	
+	this.Reset = Reset;
+	function Reset() {
+		this.Score = 0;
+		this.Count = 0;
+		this.Time = (new Date()).getTime();
+		this.ExistingQuestions = new Array();
+	}
+	
+	this.QuestionGen = QuestionGen;
+	function QuestionGen() {
+		var raw = this.QuestionGenRaw();
+		
+		if (this.ExistingQuestions != null) {
+			while (this.ExistingQuestions.indexOf(raw) != -1) {
+				raw = this.QuestionGenRaw();
+			}
+			this.ExistingQuestions.push(raw);
+		}
+				
+		return new Question(raw);
+	}
+	
+	this.QuestionGenRaw = QuestionGenRaw;
+	function QuestionGenRaw()
+	{
+		if (this.Operation != '/') {
+			return String(RandomGen(this.First_min, this.First_max)) + " " + this.Operation + " " + String(RandomGen(this.Second_min, this.Second_max));
+		}
+		else {
+			second_value = RandomGen(this.Second_min, this.Second_max);
+			return String(RandomGen(this.First_min, this.First_max) * second_value) + " / " + String(second_value);
+		}
+	}
+	
+	this.ElapsedTime = ElapsedTime;
+	function ElapsedTime() {
+		return Math.floor(((new Date()).getTime() - this.Time) / 1000);
+	}
+	
+	this.CookieId = CookieId;
+	function CookieId() {
+		var operation_code = "";
+		switch (this.Operation) {
+		case '+':	operation_code = '1'; break;
+		case '-':	operation_code = '2'; break;
+		case '*':	operation_code = '3'; break;
+		case '/':	operation_code = '4'; break;
+		}
+		operation_code += "a" + String(this.First_max) + "a" + String(this.First_min) + "a" + String(this.Second_max) + "a" + String(this.Second_min);
+		return operation_code;
+	}
+	
+	this.CalcResult = CalcResult;
+	function CalcResult(max_num) {
+		time_per_question = this.ElapsedTime() / max_num;
+		
+		if (time_per_question <= this.Great)
+			this.Result = 3;
+		else if (time_per_question <= this.Good)
+			this.Result = 2;
+		else
+			this.Result = 1;
+	}
+}
+
+function RandomGen(min, max) {
+	return Math.floor(Math.random()*(max - min)) + min;
+}
+
+function Question(equation) {
+	this.Equation = equation;
+	this.Time = (new Date()).getTime();
+	
+	this.IsCorrect = IsCorrect;
+	function IsCorrect(value) {
+		return (eval(this.Equation) == value);
+	}
+	
+	this.Format = Format;
+	function Format() {
+		display_question = this.Equation.replace("*", String.fromCharCode(0xD7));
+		return display_question.replace("/", String.fromCharCode(0xF7));
+	}
+	
+	this.ElapsedTime = ElapsedTime;
+	function ElapsedTime() {
+		return Math.floor(((new Date()).getTime() - this.Time) / 1000);
+	}
+}
+
+var levelArray = new Array();
+var running_level = null;
+var question_timer = null;
+var result_timer = null;
+var running_question = null;
+var wrong_questions = null;
+var question_mode_backgroun = "#F0F0F0";
+
+function initialize() {
+	levelArray.push(new Level('+', 9, 1, 9, 1, 10));
+	levelArray.push(new Level('+', 19, 10, 9, 1, 15)); 
+	levelArray.push(new Level('+', 89, 20, 9, 1, 20));
+	levelArray.push(new Level('+', 99, 91, 9, 1, 30));
+	levelArray.push(new Level('+', 19, 11, 19, 10, 35));
+	levelArray.push(new Level('+', 89, 20, 19, 11, 40));
+	levelArray.push(new Level('+', 89, 21, 89, 21, 45));
+	levelArray.push(new Level('-', 19, 10, 9, 1, 30));
+	levelArray.push(new Level('-', 89, 20, 9, 1, 30));
+	levelArray.push(new Level('-', 89, 50, 49, 11, 40));
+	levelArray.push(new Level('*', 9, 2, 9, 2, 30));
+	levelArray.push(new Level('/', 9, 2, 9, 2, 40));
+	levelArray.push(new Level('*', 19, 10, 9, 2, 45));
+	levelArray.push(new Level('/', 19, 10, 9, 2, 45));
+	levelArray.push(new Level('*', 89, 11, 9, 2, 0));
+	
+	levelArray[0].Great = 2.0;
+	levelArray[10].Great = 2.0;
+	
+	checkCookie();
+	level_select_stage();
+}
+
+function checkCookie()
+{
+	var last_level = getCookie("level");
+	if (last_level == "")
+		last_level = "0";
+	$("#level_text").val(last_level);
+
+	for (var i in levelArray) {
+		var last_result = getCookie(levelArray[i].CookieId());
+		last_result = Number(last_result);
+		
+		levelArray[i].Result = null;
+		if (last_result > 0 && last_result < 4) 
+			levelArray[i].Result = last_result;
+	}
+}
+
+function onprev() {
+	level = Number($("#level_text").val());
+	level--;
+	if (level == -1) {
+		level = 0;
+	}
+	
+	$("#level_text").val(String(level));
+	level_select_stage();
+}
+
+function onnext() {
+	level = Number($("#level_text").val());
+	level++;
+	if (level == levelArray.length) {
+		level = levelArray.length - 1;
+	}
+	$("#level_text").val(String(level));
+	level_select_stage();
+}
+
+function level_select_stage() {
+	document.bgColor="#FFFFFF";
+	$("#answer_form").hide();
+	$("#answer_form").html("");
+	$("#result").html("");
+	$("#level_text").show();
+	
+	if (question_timer != null) {
+		window.clearInterval(question_timer);
+		question_timer = null;
+	}
+	
+	if (result_timer != null) {
+		window.clearInterval(result_timer);
+		result_timer = null;
+	}
+	
+	render_level_table();
+}
+
+function render_level_table() {
+	var txt = "";
+	var columns = max_columns;
+	var rows = Math.floor((levelArray.length + (columns - 1)) / columns);
+	var count = 0;
+	var level_string = new Array();
+
+	for (var i in levelArray) {
+		var star_img = "";
+		if (levelArray[i].Result == null)
+			class_txt = "notyet";
+		else {
+			class_txt = "pass" + String(levelArray[i].Result);
+			star_img = " <div style='position: absolute; z-index:5000'>";
+			for (var j = 0; j < levelArray[i].Result; j++) {
+				star_img += "<img src='MathQuizRes/Star.png' width='20'></img>";
+			}
+			star_img += "</div>";
+		}
+		var cell = "<td class='" + class_txt + "' align='center' width='" + String(Math.floor(100/columns)) + "%'> " + star_img + "<input type='button' onclick=onrunbylevel('" + String(i) + "'); value='" + String(i) + "' style='font-size:150%; width:100%' > <br>" + levelArray[i].QuestionGen().Format() + " </td>";
+		level_string.push(cell);
+	}
+	
+	for (var i = 0; i < rows; i++) {
+		txt += "<tr>";
+		for (var j = 0; j < columns && count < levelArray.length; j++, count++) {
+			txt += level_string[count];
+		}
+		txt += "</tr>";
+	}
+
+	$("#level_table").html(txt);
+	$("#level_table").show();
+}
+
+function level_onkey(e) {
+	level = Number($("#level_text").val());
+	if (level < 0 || level >= levelArray.length)
+		return;
+	
+	if (e.keyCode != 13)
+		return;
+		
+	onrun();
+}
+
+function onrunbylevel(level_string) {
+	level = Number(level_string);
+
+	if (level < 0 || level >= levelArray.length)
+		return;
+	
+	$("#level_text").val(String(level));
+	onrun();
+}
+
+function onrun() {
+	document.bgColor = question_mode_backgroun;
+	$("#level_table").hide();
+	$("#level_table").html("");
+	$("#level_text").hide();
+	$("#answer_form").html(" \
+		<table id='question_sheet' border = '0' align='center'> \
+			<tr> \
+				<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td> \
+				<td><p id='question_no'></p></td> \
+				<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td> \
+				<td align='right'><p id='question'></p></td> \
+				<td aligh='left'><input type='tel' id='answer_text' onkeyup='answer_onkey(event)'; value='' style='font-size:200%' size='3' autocomplete='off'></td> \
+				<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td> \
+			</tr> \
+		</table> \
+		<table border = '0' align='center'> \
+			<tr> <td> <p id='score'></p> <p id='time_elapse'></p> </td> </tr> \
+		</table>");
+		
+	current_level = Number($("#level_text").val());
+	if (current_level < 0 || current_level >= levelArray.length)
+		return;
+	running_level = levelArray[current_level];
+	running_level.Reset();
+	
+	$("#answer_form").show();
+	updatescore();
+	
+	question_timer = window.setInterval("on_question_timer()", 1000);
+	wrong_questions = new Array();
+	new_question();
+	
+	on_question_timer();
+	$("#answer_text").focus();
+	setCookie("level", String(current_level), 30);
+}
+
+function updatescore() {
+	$("#score").html("<h1>Score: " + String(running_level.Score * (100 / max_num_question)) + "</h1>");
+}
+
+function new_question() {
+	running_question = running_level.QuestionGen();
+	show_question();
+}
+
+function show_question() {
+	$("#answer_text").val("");
+	$("#question_no").html("<h2>" + String(running_level.Count + 1) + ".</h2>");
+	$("#question").html("<h1>" + running_question.Format() + " = </h1>");
+}
+
+function is_homework() {
+	if (running_level == null)
+		return false;
+		
+	return (running_level.Score >= max_num_question);
+}
+
+function answer_onkey(e) {
+	document.bgColor = question_mode_backgroun;
+	
+	if (running_question == null)
+		return;
+	if (running_level == null)
+		return;
+		
+
+	if (running_question.IsCorrect(Number($("#answer_text").val()))) {
+		running_level.Score++;
+		running_level.Count++;
+		updatescore();
+		
+		if (is_homework()) {
+			if (wrong_questions.length > 0) {
+				running_question = wrong_questions.pop();
+				document.bgColor="#CEE3F6";
+				show_question();
+			}
+			else {
+				show_result(running_level);
+			}
+		}
+		else {
+			new_question();
+		}
+	}
+	else if (e.keyCode == 13) {
+		$("#answer_text").val("");
+		document.bgColor="#FFB6C1";
+		wrong_answer_process();
+	}
+}
+
+function wrong_answer_process()
+{
+	if (is_homework() || wrong_questions == null || wrong_questions.indexOf(running_question) != -1)
+		return;
+
+	wrong_questions.push(running_question);
+
+	document.bgColor="#FFB6C1";
+	running_level.Score--;
+	if (running_level.Score < 0) {
+		running_level.Score = 0;
+	}
+	updatescore();
+}
+
+function on_question_timer()
+{
+	if (running_level == null)
+		return;
+	
+	$("#time_elapse").html("<h3> Elapsed Time: " + String(running_level.ElapsedTime()) + "s </h3>");
+	
+	if (running_question == null || running_level.TimeLimit <= 0)
+		return;
+	
+	if (!is_homework() && running_question.ElapsedTime() > running_level.TimeLimit)
+		wrong_answer_process();
+}
+
+function show_result(level)
+{
+	document.bgColor="#FFFFFF";
+	$("#answer_form").hide();
+	$("#answer_form").html("");
+	$("#level_control_form").hide();
+	
+	var elapsed_time = level.ElapsedTime();
+	level.CalcResult(max_num_question);
+	setCookie(level.CookieId(), String(level.Result), 30);
+	
+	var result_txt;
+	switch (level.Result) {
+	case 3:	result_txt = "<img src='MathQuizRes/great.gif' width='320'></img>"; break;
+	case 2:	result_txt = "<img src='MathQuizRes/good.gif' width='320'></img>"; break;
+	case 1: result_txt = "<img src='MathQuizRes/congratulations.gif' width='320'></img>"; break;
+	}
+	
+	result_txt += "<h1> Elapsed Time: " + String(Math.floor(elapsed_time)) + "s!</h1>";
+
+	$("#result").html(result_txt);
+
+	result_timer = window.setInterval("on_result_timer()", 6000);
+}
+
+function on_result_timer()
+{
+	if (result_timer == null)
+		return ;
+	
+	clearInterval(result_timer);
+	result_timer = null;
+	
+	$("#level_control_form").show();
+	onnext();
+}
+
+</script>
+
+<style>
+#question_sheet {
+	background-color: #f8f8f8;
+	box-shadow: 2px 2px 10px #888888;
+	border-radius:10px;
+}
+
+#level_table {
+	border-collapse:collapse;
+	background-color:#CEE3F6;
+	border: 1px #B8B5CA;
+	box-shadow: 2px 2px 10px #B8B5CA;
+}
+
+#answer_form {
+	width: 340px;
+	margin-left:auto;
+	margin-right:auto;
+}
+
+#level_control_form {
+	width: 340px;
+	margin-left:auto;
+	margin-right:auto;
+	background-color: #f8f8f8;
+	box-shadow: 2px 2px 10px #888888;
+	border-radius:10px;
+}
+
+td,p {
+	color:black;
+	font-family:"Times New Roman";
+}
+
+#explain {
+	color:grey;
+	font-family:"Times New Roman";
+	font-style:italic;
+}
+
+input.level_c {
+	font-size:150%
+}
+
+td.notyet {
+	background-color:#CEE3F6;
+}
+
+td.pass3 {
+	background-color:#FFBF00;
+}
+
+td.pass2 {
+	background-color:#FACC2E;
+}
+
+td.pass1 {
+	background-color:#F5DA81;
+}
+
+</style>
+
+</head>
+<body onload="initialize();" onorientationchange="updateOrientation();">
+<table id="level_table" border='1' cellpadding='8' align='center'> </table>
+
+<form id='answer_form' class="answer_f" onsubmit="return false;" align='center'> </form>
+
+<p id="result" align='center'></p>
+
+<form id='level_control_form' onsubmit="return false;" align='center'>
+<input type="button" class="level_c" onclick="onprev()"; value="<">
+<input type="tel" id="level_text" class="level_c" onkeypress="level_onkey(event)"; value="0" size="2">
+<input type="button" class="level_c" onclick="onrun()"; value="Run!">
+<input type="button" class="level_c" onclick="onnext()"; value=">">
+</form>
+<p id='explain'>
+This is a game to encourage children in learning the basic mathematics. Throughout clearing the each stages, children can calculate simple addition, subtraction and multiplication quickly. Even they can remember the answers per some questions. And it can be useful to solve more complex Math question!
+<br>
+Each level has 20 questions and different time limit per question. And you can get three stars when you accomplish all questions in a level in time. If you put wrong answer, your score can be subtracted so that you should answer more than 20 questions to be done. And your mistakes will be asked again at the end.
+</p>
+<p id='explain' align='right'>This website is compatible with iOS Safari.</p>
+</body>
+</html>

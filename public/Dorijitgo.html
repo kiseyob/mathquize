@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dorijitgo</title>
+<link rel="icon" type="image/png" href='DorijitgoIcons/icon-100.png' />
+<link rel="shortcut icon" type="image/png" href='DorijitgoIcons/icon-32.png' />
+<link rel="apple-touch-icon" href="DorijitgoIcons/icon-ipad.png">
+<link rel="apple-touch-icon" sizes="120x120" href="DorijitgoIcons/icon-iphone-retina.png">
+<link rel="apple-touch-icon" sizes="152x152" href="DorijitgoIcons/icon-ipad-retina.png">
+
+<script src="js/jquery.min.js"></script>
+<script src="js/CookieUtil.js"></script>
+<script src="js/NoClickDelay.js"></script>
+<script src="js/dorijitgo.js"></script>
+
+
+<script>
+if (navigator.userAgent.match(/iPhone/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = 300px, initial-scale = 0.9, user-scalable = no" />' );
+}
+else if (navigator.userAgent.match(/iPad/i)) {
+	$('head').append( '<meta name="viewport" id="view" content = "width = 300px, initial-scale = 2.0, user-scalable = no" />' );
+}
+
+function updateOrientation()
+{
+	if (!navigator.userAgent.match(/iPhone/i))
+		return;
+		
+	switch(window.orientation) {
+		case 0:
+		case 180:	// "Portrait"
+			$("#view").attr('content','user-scalable=no, width=300px, initial-scale = 0.9, minimum-scale = 0.9, maximum-scale = 0.9');
+			break;
+		case -90:
+		case 90:	// "Landscape"
+			$("#view").attr('content','user-scalable=no, width=300px, initial-scale = 1.4, minimum-scale = 1.4, maximum-scale = 1.4');
+			break;
+	}
+}
+
+var cards = null;
+
+function checkCookie()
+{
+	var high_score = getCookie("ScoreRecord");
+
+	if (high_score == "")
+		return 0;
+	else
+		return Number(high_score);
+}
+
+function writeCookie(score)
+{
+	setCookie("ScoreRecord", String(score), 30);
+}
+
+$(document).ready(function() {
+	$("#mode").hide();
+	$("#image_mode").css("background-image", "url('hawtoo/8a.png')");
+	$("#image_mode2").css("background-image", "url('Cards/8a.png')");
+	$("#play").hide();
+	$("#preloading").hide();
+	
+	new NoClickDelay(document.getElementById('card0'));
+	new NoClickDelay(document.getElementById('card1'));
+	new NoClickDelay(document.getElementById('card2'));
+	new NoClickDelay(document.getElementById('card3'));
+	new NoClickDelay(document.getElementById('card4'));
+	
+	$("#mode").fadeIn(5000);
+	$("#numcard_mode").click(function() { play(10000, null); });
+	$("#image_mode").click(function() { play(15000, 'hawtoo/'); });
+	$("#image_mode2").click(function() { play(12000, 'Cards/'); });
+});
+
+function play(time_limit, image_mode) {
+	var high_score = checkCookie();
+	cards = new CardSet(time_limit, high_score, writeCookie, image_mode);
+	$("#mode").hide();
+
+	if (image_mode) {
+		$("#preloading").fadeIn(3000);
+		cards.PreLoading($("#preloading_image"), function() {
+			$("#preloading").hide();
+			$("#play").show();
+			cards.Reset();
+			cards.SetHTML();
+		});
+	}
+	else {
+		$("#play").show();
+		cards.Reset();
+		cards.SetHTML();
+	}
+}
+
+</script>
+
+<style>
+.cards_table {
+	margin-left:auto;
+	margin-right:auto;
+}
+
+.card {
+	padding-left:20px;
+	padding-right:20px;
+	padding-top:10px;
+	padding-bottom:10px;
+	font-family:"Times New Roman";
+	font-size:40px;
+	text-align:center;
+	background-color:#f8f8f8;
+	box-shadow: 2px 2px 10px black;
+	border-radius:10px;
+}
+
+.image {
+	width:60px;
+	height:93px;
+	box-shadow: 2px 2px 10px black;
+	border-radius:5px;
+	background-size: 100% auto;
+}
+
+.image2 {
+	width:60px;
+	height:82px;
+	box-shadow: 2px 2px 10px black;
+	border-style:solid;
+	border-color:black;
+	border-width:1px;
+	border-radius:3px;
+	background-size: 100% auto;
+}
+
+#remaining_time {
+	height:20px;
+	background: -webkit-linear-gradient(#0174DF,#0A0A2A); /* For Safari */
+	background: -o-linear-gradient(#0174DF,#0A0A2A); /* For Opera 11.1 to 12.0 */
+	background: -moz-linear-gradient(#0174DF,#0A0A2A); /* For Firefox 3.6 to 15 */
+	background: linear-gradient(#0174DF,#0A0A2A); /* Standard syntax */	
+	box-shadow: 2px 2px 5px #0A0A2A;
+	border-radius:5px;
+}
+
+.background {
+	background-image: url('DorijitgoIcons/background.png');
+}
+
+.text {
+	color:white;
+	text-shadow: 2px 2px 2px black;
+}
+</style>
+
+</head>
+<body onorientationchange="updateOrientation();" class='background'>
+
+<div id='mode'>
+<table class='cards_table'>
+<tr>
+<td><div id='numcard_mode' class='card'>8</div></td>
+<td><div id='image_mode' class='image'></div></td>
+<td><div id='image_mode2' class='image2'></div></td>
+</tr>
+</table>
+<table class='cards_table'>
+<tr><td class='text' align='center'><h4>Choose a type of card which you want to play!</h4>
+<p>Among 5 cards, you will pick 3 cards to make 10 or 20 from their summation.<br>
+From the remaining cards and time, the score will be calculated. If two same number cards remain, you will get multiplied score.</p>
+</td></tr>
+</table>
+</div>
+
+<div id='preloading'>
+	<table class='cards_table'>
+	<tr><td id='preloading_image'></td></tr>
+	</table>
+	<table class='cards_table'>
+	<tr class='text'><td>Image loading...</td></tr>
+	</table>
+</div>
+
+<div id='play'>
+	<table class='cards_table'>
+	<tr class='text'>
+	<td>High Score: </td>
+	<td><div id='high_score'></div></td>
+	</tr>
+	</table>
+
+	<table class='cards_table'>
+	<tr>
+	<td width='65px'><div id='card0' class='card'></div></td>
+	<td width='65px'><div id='card1' class='card'></div></td>
+	<td width='65px'><div id='card2' class='card'></div></td>
+	<td width='65px'><div id='card3' class='card'></div></td>
+	<td width='65px'><div id='card4' class='card'></div></td>
+	</tr>
+	</table>
+
+	<table class='cards_table' width='300px'>
+	<tr>
+	<td><div id='remaining_time'></div></td>
+	</tr>
+	</table>
+
+	<table class='cards_table'>
+	<tr class='text'>
+	<td>Latest Score: </td>
+	<td><div id='score'> </div></td>
+	</tr>
+	</table>
+</div>
+
+</body>
