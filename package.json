@@ -1,0 +1,22 @@
+{
+  "name": "mathquize",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kiseyob/mathquize.git"
+  },
+  "author": "Seyob Kim",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kiseyob/mathquize/issues"
+  },
+  "homepage": "https://github.com/kiseyob/mathquize",
+  "dependencies": {
+    "express": "^4.14.0"
+  }
+}
